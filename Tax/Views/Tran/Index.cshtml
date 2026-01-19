@@ -1,0 +1,240 @@
+@model t_tran
+
+<div class="container">
+    <div id="notification"></div>
+
+    <button id="btnAdd" class="btn btn-success">Add Transaction</button>
+    <button id="btnV" class="btn btn-primary">View Summary</button>
+    <br /><br />
+
+    <!-------------- Grid -------------->
+    <div id="grid"></div>
+
+    <!-------------- Add / Edit Window -------------->
+    <div id="win">
+        <form id="tranForm">
+            <input type="hidden" id="t_tranid" name="t_tranid" />
+
+            <label>Name</label>
+            <input id="t_tranName" name="t_tranName" required />
+            <br /><br />
+
+            <label>Type</label>
+            <input id="t_type" name="t_trantype" required />
+            <br /><br />
+
+            <label>Taxable</label>
+            <input id="t_taxable" name="t_taxable" required />
+            <br /><br />
+
+            <label>Amount</label>
+            <input id="t_amount" name="t_taxamount" required />
+            <br /><br />
+
+            <button id="btnSave" class="btn btn-primary">Save</button>
+        </form>
+    </div>
+
+    <!-------------- Summary -------------->
+    <div id="win1">
+        <b>Total Income: <span id="income">0</span></b><br />
+        <b>Non-Tax Expense: <span id="nontax">0</span></b><br />
+        <b>Taxable Income: <span id="taxable_income">0</span></b><br />
+        <b>Tax: <span id="tax">0</span></b><br />
+        <b>Saving: <span id="saving">0</span></b>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+
+            //================ Notification =================
+            var notification = $("#notification").kendoNotification({
+                position: { top: 30, right: 30 },
+                autoHideAfter: 3000
+            }).data("kendoNotification");
+
+            //================ TextBoxes =================
+            $("#t_tranName").kendoTextBox();
+            $("#t_amount").kendoTextBox();
+
+            //================ Type DropDown =================
+            $("#t_type").kendoDropDownList({
+                dataSource: ["Income", "Expense"],
+                optionLabel: "--Select--",
+                change: function () {
+                    let tax = $("#t_taxable").data("kendoDropDownList");
+                    if (this.value() === "Income") {
+                        tax.value("true");
+                        tax.enable(false);
+                    } else {
+                        tax.enable(true);
+                        tax.value("");
+                    }
+                }
+            });
+
+            //================ Taxable DropDown =================
+            $("#t_taxable").kendoDropDownList({
+                dataSource: [
+                    { text: "true", value: "true" },
+                    { text: "false", value: "false" }
+                ],
+                dataTextField: "text",
+                dataValueField: "value",
+                optionLabel: "--Select--"
+            });
+
+            //================ Window =================
+            let win = $("#win").kendoWindow({
+                width: 400,
+                modal: true,
+                visible: false,
+                title: "Transaction"
+            }).data("kendoWindow");
+
+            let win1 = $("#win1").kendoWindow({
+                width: 350,
+                modal: true,
+                visible: false,
+                title: "Summary"
+            }).data("kendoWindow");
+
+            //================ Add Button =================
+            $("#btnAdd").click(() => {
+                $("#tranForm")[0].reset();
+                $("#t_tranid").val(0);
+                win.center().open();
+            });
+
+            //================ Validator =================
+            var validator = $("#tranForm").kendoValidator({
+                rules: {
+                    nameOnly: function (input) {
+                        if (input.is("#t_tranName")) {
+                            return /^[a-zA-Z\s]+$/.test(input.val());
+                        }
+                        return true;
+                    },
+                    numberOnly: function (input) {
+                        if (input.is("#t_amount")) {
+                            return /^[0-9]+$/.test(input.val());
+                        }
+                        return true;
+                    }
+                },
+                messages: {
+                    nameOnly: "Only alphabets allowed",
+                    numberOnly: "Only numbers allowed",
+                    required: "This field is required"
+                }
+            }).data("kendoValidator");
+
+            //================ Grid =================
+            $("#grid").kendoGrid({
+                dataSource: {
+                    transport: { read: "/Tran/ShowExpense" },
+                    schema: { model: { id: "t_tranid" } },
+                    pageSize: 10
+                },
+                pageable: true,
+                columns: [
+                    { field: "t_tranid", title: "ID", width: 60 },
+                    { field: "t_tranname", title: "Name" },
+                    { field: "t_trantype", title: "Type" },
+                    { field: "t_taxable", title: "Taxable" },
+                    { field: "t_taxamount", title: "Amount" },
+                    {
+                        title: "Action",
+                        template:
+                            "<button class='btn btn-success btn-sm' onclick='edit(#=t_tranid#)'>Edit</button> " +
+                            "<button class='btn btn-danger btn-sm' onclick='del(#=t_tranid#)'>Delete</button>"
+                    }
+                ]
+            });
+
+            //================ Save =================
+            $("#btnSave").click(function (e) {
+                e.preventDefault();
+
+                if (!validator.validate()) {
+                    notification.show("Fix validation errors", "error");
+                    return;
+                }
+
+                let fd = new FormData($("#tranForm")[0]);
+
+                $.ajax({
+                    url: "/Tran/Add",
+                    type: "POST",
+                    data: fd,
+                    processData: false,
+                    contentType: false,
+                    success: res => {
+                        if (res.success) {
+                            notification.show("Saved Successfully", "success");
+                            win.close();
+                            $("#grid").data("kendoGrid").dataSource.read();
+                        }
+                    }
+                });
+            });
+
+            //================= Delete ===================
+            window.del = function (id) {
+                if (!confirm("Delete this record?")) return;
+                $.post("/Tran/DeleteExpense", { id }, res => {
+                    res.success
+                        ? notification.show("Deleted", "success")
+                        : notification.show("Failed", "error");
+                    $("#grid").data("kendoGrid").dataSource.read();
+                });
+            };
+
+
+            //================= Update Data =================
+            window.edit = function (id) {
+
+                let grid = $("#grid").data("kendoGrid");
+                let d = grid.dataSource.get(id);
+
+                $("#t_tranid").val(d.t_tranid);
+
+                $("#t_tranName").data("kendoTextBox")
+                    .value(d.t_tranname);
+
+                $("#t_amount").data("kendoTextBox")
+                    .value(d.t_taxamount);
+
+                $("#t_type").data("kendoDropDownList")
+                    .value(d.t_trantype);
+
+                $("#t_taxable").data("kendoDropDownList")
+                    .value(d.t_taxable);
+
+                win.center().open();
+            };
+
+            //================== Logic =======================
+            $("#btnV").click(function () {
+                win1.center().open();
+
+                $.ajax({
+                    url: "/Tran/Summary",
+                    type: "GET",
+                    success: function (res) {
+                        if (res.success) {
+                            $("#income").text(res.income);
+                            $("#nontax").text(res.nontax);
+                            $("#taxable_income").text(res.taxable_income);
+                            $("#tax").text(res.tax);
+                            $("#saving").text(res.saving);
+                        }
+                    }
+                });
+            });
+
+        });
+    </script>
+}

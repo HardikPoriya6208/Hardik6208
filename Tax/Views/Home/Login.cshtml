@@ -1,0 +1,103 @@
+@model vm_login
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h3>Login page</h3>
+</div>
+
+<!-- Notification container -->
+<div id="Notification"></div>
+
+<div>
+    <form id="login"></form>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+
+            // Kendo Notification
+            var notification = $("#Notification").kendoNotification({
+                position: {
+                    pinned: true,
+                    top: 30,
+                    right: 30
+                },
+                autoHideAfter: 1500,
+                stacking: "down",
+                templates: [
+                    {
+                        type: "success",
+                        template: "<div class='k-messagebox k-messagebox-success'>#= message #</div>"
+                    },
+                    {
+                        type: "error",
+                        template: "<div class='k-messagebox k-messagebox-error'>#= message #</div>"
+                    }
+                ]
+            }).data("kendoNotification");
+
+            // Kendo Form
+            $("#login").kendoForm({
+                items: [
+                    {
+                        field: "c_email",
+                        label: "Email :",
+                        validation: { required: { message: "Email is required" } }
+                    },
+                    {
+                        field: "c_password",
+                        label: "Password :",
+                        editor: function (container, options) {
+                            $('<input type="password" name="' + options.field + '" required="required" data-required-msg="Please enter your password" />')
+                                .appendTo(container)
+                                .kendoTextBox();
+                        }
+                    }
+                ],
+
+                submit: function (e) {
+                    e.preventDefault();
+
+                    const userdata = new FormData();
+                    userdata.append("c_email", e.model.c_email);
+                    userdata.append("c_password", e.model.c_password);
+
+                    $.ajax({
+                        url: '@Url.Action("Login", "Home")',
+                        method: "POST",
+                        data: userdata,
+                        contentType: false,
+                        processData: false,
+                        success: function (result) {
+                            if (result.success) {
+                                // Show success notification
+                                notification.show({
+                                    message: "Login successful!"
+                                }, "success");
+
+                                // Redirect after 1.5 seconds
+                                setTimeout(function () {
+                                    window.location.href = result.redirectUrl;
+                                }, 1500);
+
+                            } else {
+                                // Show error notification
+                                notification.show({
+                                    message: result.message || "Login failed!"
+                                }, "error");
+                            }
+                        },
+                        error: function () {
+                            notification.show({
+                                message: "Something went wrong!"
+                            }, "error");
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+}

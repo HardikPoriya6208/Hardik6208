@@ -1,0 +1,166 @@
+Tour
+
+----------------------CShtml
+
+@{
+    ViewData["Title"] = "Home Page";
+            Layout = "../Shared/_LayoutAdmin.cshtml";
+
+}
+
+<div class="text-center">
+    <h1>Welcome @ViewData["Name"]</h1>
+</div>
+
+<div id="Grid"></div>
+<div id="Window" style=" padding : 20px; background-color : rgb(246, 226, 226)">
+    <p id="inc">Total Income : </p>
+    <p id="exp">Total expense : </p>
+    <p id="prof">Profit : </p>
+</div>
+
+<style>
+    b {
+        color : green;
+    }
+
+</style>
+
+@section Scripts{
+    <script>
+        $(document).ready(function(){
+
+            $("#Grid").kendoGrid({
+                dataSource : {
+                    transport : {
+                        read :{
+                            url : "/Admin/GetallTours"
+                        }
+                    },
+                    schema :{
+                        model : {
+                            id : "c_tourid",
+                            fields : {
+                                c_tourid : {type : "number", editable : false},
+                                c_tourname : {type : "string"},
+                                c_price : {type : "string"},
+                                c_tourdate : {type : "date"},
+                            }
+                        }
+                    },
+                    pageSize : 5
+                },
+                columns : [
+                    {
+                        field: "c_tourid",
+                        title: "Tour Id"
+                    },
+                    {
+                        field: "c_tourname",
+                        title: "Name"
+                    },
+                    {
+                        field: "c_price",
+                        title: "Price"
+                    },
+                    {
+                        field: "c_tourdate",
+                        title: "Date",
+                        format : "{0:yyyy-MM-dd}"
+                    },
+                    {
+                        title : "View",
+                        command : {
+                            text : "View details",
+                            name : "Details",
+                            click : showDetails
+                        }
+
+                    },
+                ]
+
+            })
+
+            $("#Window").kendoWindow({
+                width : "400px",
+                title : " Tour Details",
+                model : true,
+                visible : false
+            });
+
+            function showDetails(e){
+                e.preventDefault();
+                var dataItem = this.dataItem($(e.currentTarget).closest("tr"));
+
+                @* $("#Window").data("kendoWindow").open().center(); *@
+                $("#Window").data("kendoWindow").open().center();
+
+                $.ajax({
+                    url : "/Admin/GetTourExps",
+                    method : "post",
+                    data : {tourid : dataItem.c_tourid},
+                    success : function(res){
+                        var Tourdata = res.dataTour;
+                        var totalinc = Tourdata.totlebooking * dataItem.c_price
+                        var profit = totalinc -  Tourdata.totalexp
+                        $("#inc").html('<b> Total Income </b> ' + totalinc);
+                        $("#exp").html('<b> Total Expence </b> ' + Tourdata.totalexp);
+                        $("#prof").html('<b> Total Profit </b> ' + profit);
+                    }
+                })
+
+                @* alert(dataItem.c_amount); *@
+            }
+
+        })
+
+    </script>
+}
+
+---------------Controller
+        [HttpPost]
+        public async Task<IActionResult> GetTourExps(int tourid)
+        {
+            TourAdmin Tour = await _admin.GetTourExp(tourid);
+            return new JsonResult(new {success = true, dataTour = Tour});
+        }
+
+---------------Service
+       public async Task<TourAdmin> GetTourExp(int id)
+        {
+            TourAdmin Tour = new TourAdmin();
+            try
+            {
+                await _conn.OpenAsync();
+
+                using (var cmd = new NpgsqlCommand(@"SELECT count(*) from t_tour_booking WHERE c_tourid = @id", _conn))
+                {
+                    cmd.Parameters.AddWithValue("id", id);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (reader.Read())
+                    {
+                        Tour.totlebooking = reader.GetInt32(0);
+                    }
+                }
+
+                using (var cmd = new NpgsqlCommand(@"SELECT sum(c_amount) from t_tour_expence WHERE c_tourid = @id", _conn))
+                {
+                    cmd.Parameters.AddWithValue("id", id);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (reader.Read())
+                    {
+                        Tour.totalexp = reader.GetInt32(0);
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in Get Get all bookings -----> " + ex.Message);
+            }
+            finally
+            {
+                await _conn.CloseAsync();
+            }
+            return Tour;
+        }

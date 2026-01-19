@@ -1,0 +1,249 @@
+@{
+    ViewData["Title"] = "Tours Management";
+}
+
+<link rel="stylesheet" href="~/lib/kendo/kendo.default-v2.min.css" />
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/kendo/kendo.all.min.js"></script>
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">Tours Management</h2>
+
+    @*-----------  grid-1 ------------  *@
+    <h4>Available Tours</h4>
+    <div id="grid"></div>
+    <br />
+
+    @*----------- grid -2 ------------ *@
+    <h4>Your Bookings</h4>
+    <div id="grid1"></div>
+    <br />
+
+    <!-- EDIT WINDOW -->
+    <div id="editWindow" style="display:none;">
+
+        @* <label>Tours Price:</label>
+        <input type="text" id="editAmount" class="k-textbox" /> *@
+
+        @* <br /><br /> *@
+
+        <label>Booking Date:</label>
+        <input id="editDate" style="width:100%;" />
+
+        <input type="hidden" id="editBookingId" />
+
+        <br /><br />
+        <button class="k-button k-button-solid-primary" onclick="saveEdit()">Update</button>
+
+    </div>
+
+</div>
+
+<script>
+
+    var editWnd;
+
+    $(document).ready(function () {
+
+        loadGrid();
+        loadBookedGrid();
+
+        // EDIT POPUP INIT
+        editWnd = $("#editWindow").kendoWindow({
+            title: "Edit Booking",
+            width: "350px",
+            height: "260px",
+            visible: false,
+            modal: true
+        }).data("kendoWindow");
+
+        // DATE PICKER INIT
+        $("#editDate").kendoDatePicker({
+            format: "yyyy-MM-dd",
+            min: new Date()
+        });
+
+
+
+    });
+
+    // =============================
+    // GRID 1 → Available Tours
+    // =============================
+    function loadGrid() {
+        $("#grid").kendoGrid({
+            dataSource: {
+                transport: { read: "/Tour/GetAll" },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+
+            columns: [
+                { field: "t_tourid", title: "Tours ID", width: 100 },
+                { field: "t_tourname", title: "Tours Name" },
+                { field: "t_tourprice", title: "Tours Price" },
+                { field: "t_tourdate", title: "Tours Date", format: "{0:yyyy-MM-dd}" },
+
+                {
+                    title: "Actions",
+                    width: 150,
+                    template: `
+                        <button class="k-button k-button-solid-primary btnBooking">
+                            Book
+                        </button>
+                    `
+                }
+            ]
+        });
+    }
+
+
+    // =============================
+    // GRID 2 → Logged-in user's bookings
+    // =============================
+    function loadBookedGrid() {
+        $("#grid1").kendoGrid({
+            dataSource: {
+                transport: { read: "/Tour/GetBookings" },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+
+            columns: [
+                { field: "t_bookingid", title: "Booking ID", width: 80 },
+                { field: "t_tourname", title: "Booking Name", width: 80 },
+                { field: "c_userid", title: "User ID", width: 80 },
+                { field: "t_tourid", title: "Tour ID", width: 100 },
+                { field: "t_tourdate", title: "Booking Date", format: "{0:yyyy-MM-dd}", width: 120 },
+
+                {
+                    title: "Actions",
+                    width: 200,
+                    template: `
+                        <button class="k-button k-button-solid-info" onclick="editBooking(#=t_bookingid#)">Edit</button>
+                        <button class="k-button k-button-solid-error" onclick="deleteBooking(#=t_bookingid#)">Delete</button>
+                    `
+                }
+            ]
+        });
+    }
+
+    // =============================
+    // BOOK TOUR
+    // =============================
+    $(document).on("click", ".btnBooking", function () {
+
+        var grid = $("#grid").data("kendoGrid");
+        var row = $(this).closest("tr");
+        var dataItem = grid.dataItem(row);
+
+        var booking = {
+            t_tourname: dataItem.t_tourname,
+            c_userid: dataItem.c_userid,
+            t_tourid: dataItem.t_tourid,
+            t_tourdate: dataItem.t_tourdate,
+        };
+
+        $.ajax({
+            url: "/Tour/SaveBooking",
+            type: "POST",
+            data: JSON.stringify(booking),
+            contentType: "application/json",
+
+            success: function (res) {
+                if (res.success) {
+                    alert("Booking Completed!");
+                    $("#grid1").data("kendoGrid").dataSource.read();
+                }
+                else {
+                    alert("Failed to Book!");
+                }
+            }
+        });
+    });
+
+    // =============================
+    // EDIT BOOKING POPUP
+    // =============================
+    function editBooking(id) {
+
+        $.get("/Tour/GetBookings", function (data) {
+
+            var booking = data.find(x => x.t_bookingid === id);
+
+            $("#editBookingId").val(booking.t_bookingid);
+            @* $("#editAmount").val(booking.t_toursprice); *@
+                $("#editDate").data("kendoDatePicker").value(new Date(booking.t_tourdate));
+
+            editWnd.center().open();
+        });
+    }
+
+    // =============================
+    // SAVE UPDATED BOOKING
+    // =============================
+    function saveEdit() {
+
+        var booking = {
+            t_bookingId: $("#editBookingId").val(),
+            @* t_toursprice: $("#editAmount").val(), *@
+            t_tourdate: $("#editDate").val()
+    };
+
+    $.ajax({
+        url: "/Tour/UpdateBooking",
+        type: "POST",
+        data: JSON.stringify(booking),
+        contentType: "application/json",
+
+        success: function (res) {
+            if (res.success) {
+                alert("Booking Updated!");
+                editWnd.close();
+                $("#grid1").data("kendoGrid").dataSource.read();
+            }
+        }
+    });
+    }
+
+    // =============================
+    // DELETE BOOKING
+    // =============================
+    function deleteBooking(id) {
+
+        if (!confirm("Are you sure you want to delete this booking?"))
+            return;
+
+        $.ajax({
+            url: "/Tour/DeleteBooking?id=" + id,
+            type: "POST",
+
+            success: function (res) {
+                if (res.success) {
+                    alert("Booking Deleted!");
+                    $("#grid1").data("kendoGrid").dataSource.read();
+                }
+            }
+        });
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>

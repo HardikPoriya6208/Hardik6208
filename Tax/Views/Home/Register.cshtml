@@ -1,0 +1,147 @@
+@model t_taxuser
+@{
+    ViewData["Title"] = "Register Page";
+}
+
+<div class="container mt-4" style="max-width:600px;">
+    <h3>Register</h3>
+    <div id="notification"></div>
+
+    <form id="Registerform" enctype="multipart/form-data">
+
+        <div class="mb-3">
+            <label asp-for="c_username" class="form-label"></label>
+            <input asp-for="c_username" class="form-control" />
+            <span asp-validation-for="c_username" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="c_email" class="form-label"></label>
+            <input asp-for="c_email" type="email" class="form-control" />
+            <span asp-validation-for="c_email" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="c_password" class="form-label"></label>
+            <input asp-for="c_password" type="password" class="form-control" />
+            <span asp-validation-for="c_password" class="text-danger"></span>
+        </div>
+
+
+        <div class="mb-3">
+            <label asp-for="c_mobile" class="form-label"></label>
+            <input asp-for="c_mobile" type="number" class="form-control" />
+            <span asp-validation-for="c_mobile" class="text-danger"></span>
+        </div>
+
+
+        <div class="mb-3">
+            <label asp-for="c_state" class="form-label"></label>
+            <select asp-for="c_state" class="form-select">
+                <option value="">---Select State---</option>
+                <option value="Gujarat">Gujarat</option>
+                <option value="MP">Madhya Pradesh</option>
+                <option value="UP">Uttar Pradesh</option>
+            </select>
+            <span asp-validation-for="c_state" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="c_city" class="form-label"></label>
+            <select asp-for="c_city" class="form-select">
+                <option value="">---Select City---</option>
+                <option value="Surat">Surat</option>
+                <option value="Vapi">Vapi</option>
+                <option value="Bharuch">Bharuch</option>
+            </select>
+            <span asp-validation-for="c_city" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="c_gender" class="form-label"></label>
+            <br />
+            <input asp-for="c_gender" type="radio" value="Male" /> Male
+            <input asp-for="c_gender" type="radio" value="Female" class="ms-3" /> Female
+            <span asp-validation-for="c_gender" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="c_type" class="form-label"></label>
+            <select asp-for="c_type" class="form-select">
+                <option value="">---Select Type---</option>
+                <option value="Salary">Salary</option>
+                <option value="Freelance">Freelance</option>
+                <option value="Salary,Freelance">Salary,Freelance</option>
+            </select>
+            <span asp-validation-for="c_state" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="ProfileImage" class="form-label"></label>
+            <input asp-for="ProfileImage" type="file" class="form-control" />
+            <span asp-validation-for="ProfileImage" class="text-danger"></span>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">Submit</button>
+    </form>
+</div>
+
+@section Scripts {
+
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        $(document).ready(function () {
+
+            // ------------------- Kendo Notification (Correct Version) -------------------
+            var notification = $("#notification").kendoNotification({
+                width: 300,
+                stacking: "down",
+                position: { top: 20, right: 20 },
+                autoHideAfter: 2500,
+                templates: [
+                    {
+                        type: "success",
+                        template: "<div class='k-notification-success'>#: data.message #</div>"
+                    },
+                    {
+                        type: "error",
+                        template: "<div class='k-notification-error'>#: data.message #</div>"
+                    }
+                ]
+            }).data("kendoNotification");
+
+
+            // ------------------- AJAX Register Submit -------------------
+            $("#Registerform").submit(function (e) {
+                e.preventDefault();
+
+                let formData = new FormData(this);
+
+                $.ajax({
+                    url: '@Url.Action("Register", "Home")',
+                    type: "POST",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (res) {
+
+                        if (res.success) {
+                            notification.show({ message: res.message }, "success");
+
+                            setTimeout(() => {
+                                window.location.href = '@Url.Action("Login", "Home")';
+                            }, 3500);
+                        }
+                        else {
+                            notification.show({ message: res.message }, "error");
+                        }
+                    },
+                    error: function () {
+                        notification.show({ message: "Something went wrong!" }, "error");
+                    }
+                });
+            });
+        });
+    </script>
+}

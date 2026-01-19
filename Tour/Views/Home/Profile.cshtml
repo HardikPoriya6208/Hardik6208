@@ -1,0 +1,172 @@
+@model t_registeruser
+
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<style>
+    .profile-wrapper {
+        max-width: 950px;
+        margin: auto;
+    }
+
+    .profile-card {
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+    }
+
+    .profile-img {
+        width: 220px;
+        height: 220px;
+        object-fit: cover;
+        border-radius: 14px;
+        border: 4px solid #eee;
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        border-left: 4px solid #0d6efd;
+        padding-left: 10px;
+    }
+
+    .btn-custom {
+        border-radius: 10px;
+        font-weight: 500;
+        padding: 10px;
+    }
+</style>
+
+<div class="profile-wrapper mt-4">
+
+    <h2 class="mb-4 fw-bold text-primary">My Profile</h2>
+
+    <!--  ALERTS -->
+    @if (TempData["ProfileSuccess"] != null)
+    {
+        <div class="alert alert-success">@TempData["ProfileSuccess"]</div>
+    }
+    @if (TempData["ProfileError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ProfileError"]</div>
+    }
+    @if (TempData["PasswordSuccess"] != null)
+    {
+        <div class="alert alert-success">@TempData["PasswordSuccess"]</div>
+    }
+    @if (TempData["PasswordError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["PasswordError"]</div>
+    }
+
+    <div class="profile-card">
+
+        <div class="row">
+
+            <!-- ================= PROFILE IMAGE ================= -->
+            <div class="col-md-4 text-center">
+
+                <img src="@Model.c_image?cache=@DateTime.Now.Ticks" class="profile-img mb-3" />
+
+                <div class="section-title">Update Profile Picture</div>
+
+                <form asp-action="UpdateProfilePicture" method="post" enctype="multipart/form-data">
+
+                    <input type="file" name="ProfilePicture" class="form-control mb-3" required />
+
+                    <button class="btn btn-primary btn-custom w-100">
+                        Upload Image
+                    </button>
+                </form>
+
+            </div>
+
+            <!-- ================= PROFILE EDIT ================= -->
+            <div class="col-md-8">
+
+                <div class="section-title">Edit Profile Information</div>
+
+                <form asp-action="UpdateProfile" method="post">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Name</label>
+                        <input type="text" name="c_username" value="@Model.c_username" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" value="@Model.c_email" class="form-control" disabled />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">City</label>
+                            <input type="text" name="c_city" value="@Model.c_city" class="form-control" required />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">State</label>
+                            <input type="text" name="c_state" value="@Model.c_state" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Mobile</label>
+                            <input type="text" name="c_mobile" value="@Model.c_mobile" class="form-control"
+                                pattern="^[6-9]\d{9}$" required />
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-semibold">Gender</label>
+                            <select name="c_gender" class="form-control">
+                                <option value="Male" selected="@(Model.c_gender == "Male")">Male</option>
+                                <option value="Female" selected="@(Model.c_gender == "Female")">Female</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-success btn-custom w-100">
+                        Update Profile
+                    </button>
+                </form>
+
+                <!-- ================= PASSWORD ================= -->
+                <div class="section-title mt-5">Change Password</div>
+
+                <form asp-action="UpdatePassword" method="post">
+
+                    <div class="row align-items-end">
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Current Password</label>
+                            <input type="password" name="currentPassword" class="form-control" required />
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">New Password</label>
+                            <input type="password" name="newPassword" class="form-control" required />
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-semibold">Confirm Password</label>
+                            <input type="password" name="confirmPassword" class="form-control" required />
+                        </div>
+
+                    </div>
+
+                    <button class="btn btn-success btn-custom w-100">
+                        Update Password
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

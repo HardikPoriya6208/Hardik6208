@@ -1,0 +1,251 @@
+EVENT
+
+--------------------CSHTML
+
+@{
+    ViewData["Title"] = "Home Page";
+    Layout = "../Shared/_LayoutAdmin.cshtml";
+}
+
+<div class="text-center">
+    <h1>Welcome Mr.@ViewData["Name"]</h1>
+</div>
+<div id="window" style="display: none;">
+    <div id="bookedseats"></div><br>
+    <div id="revenue"></div><br>
+    <div id="remainseats"></div><br>
+</div>
+<div id="grid"></div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $("#grid").kendoGrid({
+                dataSource: {
+                    transport: {
+                        read: {
+                            url: "/Admin/GetAllEvents",
+                            dataType: "json",
+                        },
+                        create: {
+                            url: "/Admin/CreateEvents",
+                            dataType: "json",
+                            method: "Post",
+                        },
+                        update: {
+                            url: "/Admin/UpdateEvents",
+                            dataType: "json",
+                            method: "Post",
+                        },
+                        destroy: {
+                            url: "/Admin/DeleteEvents",
+                            dataType: "json",
+                            method: "Post",
+                        }
+                    },
+                    schema: {
+                        model: {
+                            id: "c_eventid",
+                            fields: {
+                                c_eventid: { type: "number", editable: false },
+                                c_eventname: {
+                                    type: "string", validation: {
+                                        required: { message: "Please enter event name" }
+                                    }
+                                },
+                                c_eventdate: {
+                                    type: "date", validation: {
+                                        required: { message: "Please select Date" }
+                                    }
+                                },
+                                c_ticketprice: {
+                                    type: "number", validation: {
+                                        required: { message: "Please select Price", },
+                                        min: 1
+                                    }
+                                },
+                                c_totalseats: {
+                                    type: "number", validation: {
+                                        required: { message: "Please select total seats", },
+                                        min: 1
+                                    }
+                                },
+                                c_address: {
+                                    type: "string", validation: {
+                                        required: { message: "Please select your Type" }
+                                    }
+                                },
+                                c_eventimage: {
+                                    type: "string", validation: {
+                                        required: { message: "Please select your Type" }
+                                    }
+                                },
+                            }
+                        }
+                    },
+                    pageSize: 10,
+                    requestEnd: function (e) {
+                        if (e.type === "create" || e.type === "update" || e.type === "destroy") {
+                            if (e.response && e.response.message) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Welcome!',
+                                    text: e.response.message,
+                                    showConfirmButton: false,
+                                    timer: 1500,
+                                    timerProgressBar: true
+                                }).then(function () {
+                                    window.location.href = "/Admin/Index";
+
+                                })
+                            }
+
+                        }
+                    },
+                },
+                height: 400,
+                pageable: true,
+                filterable: true,
+                columnMenu: true,
+                sortable: true,
+                columns: [
+                    { field: "c_eventid", title: "Id", width: 70 },
+                    { field: "c_eventname", title: "Name" },
+                    {
+                        field: "c_eventdate", title: "Event Date", format: "{0:dd/MM/yyyy}",
+                        editor: function (container, options) {
+                            $('<input name="' + options.field + '" required="required" data-required-msg="Please select Expense date." />')
+                                .appendTo(container).kendoDatePicker({
+                                    min: new Date(),
+                                    format: "yyyy-MM-dd",
+                                    change: function () {
+                                        options.model.set(
+                                            options.field,
+                                            kendo.toString(this.value(), "yyyy-MM-dd")
+                                        );
+                                    }
+
+                                })
+                        }
+                    },
+                    { field: "c_ticketprice", title: "Price" },
+                    { field: "c_totalseats", title: "Total Seats" },
+                    { field: "c_address", title: "Address" },
+                    {
+                        field: "c_eventimage",
+                        title: "Event Photo",
+                        template: function (d) {
+                            return d.c_eventimage
+                                ? `<img src="/Event_Photos/${d.c_eventimage}" 
+                                                               style="width:60px;height:60px;border-radius:5px" />`
+                                : "";
+                        },
+                        editor: function (container, options) {
+
+                            var hidden = $('<input type="hidden" name="' + options.field + '" />')
+                                .appendTo(container);
+                            $('<input type="file" name="bookimg"/>')
+                                .appendTo(container)
+                                .kendoUpload({
+                                    async: {
+                                        saveUrl: "/Home/SavePhotoEvent",
+                                        autoUpload: true
+                                    },
+                                    multiple: false,
+                                    validation: {
+                                        allowedExtensions: [".jpg", ".jpeg", ".png"]
+                                    },
+                                    success: function (e) {
+                                        hidden.val(e.response.filename).trigger("change");
+                                    }
+                                });
+                        }
+                    },
+                    {
+                        title: "Action",
+                        command: ["edit", "destroy"]
+                    },
+                    {
+                        title: "Report",
+                        command: {
+                            name: "Details",
+                            text: "View Report",
+                            click: ViewReport,
+                            className: "k-button-solid-success"
+
+                        }
+                    }
+                ],
+                toolbar: ["create", "search"],
+                editable: "popup"
+            });
+
+                $("#window").kendoWindow({
+                title: "Book Ticket",
+                width: "410px",
+                modal: true,
+                visible: false
+            })
+
+            function ViewReport(e) {
+                var dataItem = this.dataItem($(e.currentTarget).closest("tr"));
+               var avalseats = dataItem.c_totalseats;
+                 $.ajax({
+                    url: "/User/GetAvalSeats",
+                    type: "Get",
+                    data: { c_eventid: dataItem.c_eventid },
+                    success: function (res) {
+                        avalseats = avalseats - res;
+                        var revenue = res * dataItem.c_ticketprice
+                        $("#bookedseats").html("<b>Booked Seats : </b>" + res)
+                        $("#revenue").html("<b>Revenue : </b>" + revenue)
+                        $("#remainseats").html("<b>Remaining Seats : </b>" + avalseats)
+                        $("#window").data("kendoWindow").open().center();
+                    }
+                })
+            }
+
+        })
+    </script>
+}
+
+
+-------------CONTROLLER
+        public async Task<IActionResult> GetAvalSeats(int c_eventid)
+        {
+            int bookedseats = await _event.GetAvalSeat(c_eventid);
+            Console.WriteLine("Booked seats in controlle -> " + bookedseats);
+            return Json(bookedseats);
+        }
+
+------------SERVICE
+        public async Task<int> GetAvalSeat(int eventid)
+        {
+            int Bookedseats = 0;
+            try
+            {
+                await _conn.OpenAsync();
+                using (var cmd = new NpgsqlCommand(@"SELECT sum(c_seatsbooked) FROM t_booking WHERE c_eventid = @c_eventid and c_status = 'Confirmed';", _conn))
+                {
+                    cmd.Parameters.AddWithValue("c_eventid", eventid);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        if (reader.Read())
+                        {
+                            Bookedseats = reader.GetInt32(0);
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in GetAllEvent --> " + ex.Message);
+            }
+            finally
+            {
+                await _conn.CloseAsync();
+            }
+            return Bookedseats;
+        }
+ 

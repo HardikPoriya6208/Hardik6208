@@ -1,0 +1,202 @@
+@{
+    ViewData["Title"] = "Tours Management";
+    Layout = "_Layout";
+}
+
+<link rel="stylesheet" href="~/lib/kendo/kendo.default-v2.min.css" />
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/kendo/kendo.all.min.js"></script>
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">Admin library Management</h2>
+
+    <!-- ===================== TOURS SECTION ===================== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h4>Available library</h4>
+        <button class="k-button k-button-solid-primary" onclick="openAddTour()">
+            Add New Tour
+        </button>
+    </div>
+
+    <div id="grid"></div>
+
+
+    <hr />
+
+    <!-- ===================== BOOKINGS SECTION ===================== -->
+    <h4>Total Bookings</h4>
+    <div id="grid1"></div>
+
+    <!-- ===================== TOUR REPORT WINDOW ===================== -->
+    <div id="reportWindow"></div>
+
+    <!-- ===================== ADD TOUR WINDOW ===================== -->
+    <div id="addTourWindow" style="display:none;">
+        <label>Book Name</label>
+        <input id="libraryname" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Author</label>
+        <input id="libraryAuthor" type="text" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Category</label>
+        <input id="libraryCategory" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Total Qty</label>
+        <input id="librarytotal" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Available </label>
+        <input id="libraryAvilable" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Image</label>
+        <input id="libraryimage" type="file" style="width:100%;" />
+
+        <br /><br />
+
+        <button class="k-button k-button-solid-success" onclick="saveTour()">
+            Save Tour
+        </button>
+    </div>
+
+
+
+
+</div>
+
+
+<script>
+
+    var addWnd, editWnd;
+
+    $(document).ready(function () {
+
+        loadToursGrid();
+        loadBookingsGrid();
+
+        // Add Tour Window
+        addWnd = $("#addTourWindow").kendoWindow({
+            title: "Add New library",
+            width: "350px",
+            height: "300px",
+            modal: true,
+            visible: false
+        }).data("kendoWindow");
+
+    }); 
+
+    // ===================== TOURS GRID - 1 =====================
+    function loadToursGrid() {
+        $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: "/library/GetAll",
+                        dataType: "json"
+                    }
+                },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+            columns: [
+                { field: "c_bookingid", title: "Book ID", width: 80 },
+                { field: "c_bookname", title: "Book Name" },
+                { field: "c_author", title: "Author" },
+                { field: "c_category", title: "Category" },
+                { field: "c_totalqty", title: "Total QTY" },
+                { field: "c_availableqty", title: "Available", width: 90 },
+                {
+                    title: "Image",
+                    width: 100,
+                    template: `
+                        <img src="/BookImages/#= c_image #"
+                             style="height:70px;width:50px;border-radius:4px;" />
+                    `
+                },
+                {
+                    title: "Actions",
+                    width: 180,
+                    template:
+                        "<button class='k-button k-button-solid-info' onclick='editTour(#=c_bookingid#)'>Edit</button> " +
+                        "<button class='k-button k-button-solid-error' onclick='deleteTour(#=c_bookingid#)'>Delete</button>"
+
+                }
+            ]
+        });
+    }
+
+    // ===================== BOOKINGS GRID - 2 =====================
+    function loadBookingsGrid() {
+        $("#grid1").kendoGrid({
+            dataSource: {
+                transport: { read: "/Admin/GetBookings" },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+            columns: [
+                { field: "c_issueid", title: "Issue ID", width: 80 },
+                { field: "c_userid", title: "User ID", width: 80 },
+                { field: "c_bookname", title: "Book Name", width: 80 },
+                { field: "c_bookingid", title: "Booking ID", width: 100 },
+                { field: "c_status", title: "Status ID", width: 100 },
+                { field: "c_issueDate", title: "Issue Date", format: "{0:yyyy-MM-dd}", width: 120 },
+                { field: "c_dueDate", title: "Due Date", format: "{0:yyyy-MM-dd}", width: 120 }
+
+            ]
+        });
+    }
+
+    // ===================== ADD TOUR =====================
+    function openAddTour() {
+        $("#libraryname").val("");
+        $("#libraryAuthor").val("");
+        $("#libraryCategory").val("");
+        $("#librarytotal").val("");
+        $("#libraryAvilable").val("");
+        $("#libraryimage").val("");
+        addWnd.center().open();
+    }
+
+    function saveTour() {
+        var tour = {
+            c_bookname: $("#libraryname").val(),
+            c_author: $("#libraryAuthor").val(),
+            c_category: $("#libraryCategory").val(),
+            c_totalqty: $("#librarytotal").val(),
+            c_availableqty: $("#libraryAvilable").val(),
+            c_image: $("#libraryimage").val()
+        };
+
+        $.ajax({
+            url: "/Admin/AddTour",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(tour),
+            success: function (res) {
+                if (res.success) {
+                    alert("Tour Added Successfully!");
+                    addWnd.close();
+                    $("#grid").data("kendoGrid").dataSource.read();
+                }
+            }
+        });
+    }
+
+
+
+
+
+
+
+</script>

@@ -1,0 +1,354 @@
+@{
+    ViewData["Title"] = "Tours Management";
+    Layout = "_Layout";
+}
+
+<link rel="stylesheet" href="~/lib/kendo/kendo.default-v2.min.css" />
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/kendo/kendo.all.min.js"></script>
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">Admin Tours Management</h2>
+
+    <!-- ===================== TOURS SECTION ===================== -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h4>Available Tours</h4>
+        <button class="k-button k-button-solid-primary" onclick="openAddTour()">
+            Add New Tour
+        </button>
+    </div>
+
+    <div id="grid"></div>
+
+
+    <hr />
+
+    <!-- ===================== BOOKINGS SECTION ===================== -->
+    <h4>Total Bookings</h4>
+    <div id="grid1"></div>
+
+    <!-- ===================== ADD TOUR WINDOW ===================== -->
+    <div id="addTourWindow" style="display:none;">
+        <label>Event Name</label>
+        <input id="eventName" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Event Price</label>
+        <input id="eventprice" type="number" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Event Seats</label>
+        <input id="eventseats" type="number" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Event Date</label>
+        <input id="eventDate" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Event Address</label>
+        <input id="eventaddress" style="width:100%;" />
+
+        <br /><br />
+
+        <button class="k-button k-button-solid-success" onclick="saveTour()">
+            Save Tour
+        </button>
+    </div>
+
+
+    <!-- ===================== EDIT BOOKING WINDOW ===================== -->
+    <div id="editTourWindow" style="display:none;">
+        <input type="hidden" id="editeventId" />
+
+        <label>Event Name</label>
+        <input id="EventName" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Price</label>
+        <input id="Eventprice" type="number" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Event Seats</label>
+        <input id="Eventseats" type="number" class="k-textbox" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Date</label>
+        <input id="EventDate" type="date" style="width:100%;" />
+
+        <br /><br />
+
+        <label>Address</label>
+        <input id="Eventaddress" style="width:100%;" />
+
+        <br /><br />
+
+        <button class="k-button k-button-solid-primary" onclick="saveTourEdit()">Update</button>
+    </div>
+
+
+
+
+</div>
+
+
+<script>
+
+    var addWnd, editWnd;
+
+    $(document).ready(function () {
+
+        loadToursGrid();
+        loadBookingsGrid();
+
+        // Add Tour Window
+        addWnd = $("#addTourWindow").kendoWindow({
+            title: "Add New Tour",
+            width: "350px",
+            height: "300px",
+            modal: true,
+            visible: false
+        }).data("kendoWindow");
+
+        // Edit Booking Window
+        editTourWnd = $("#editTourWindow").kendoWindow({
+            title: "Edit Tour",
+            width: "350px",
+            modal: true,
+            visible: false
+        }).data("kendoWindow");
+
+        $("#eventDate").kendoDatePicker({ format: "yyyy-MM-dd", min: new Date() });
+        $("#EventDate").kendoDatePicker({ format: "yyyy-MM-dd", min: new Date() });
+
+
+    });
+
+    // ===================== TOURS GRID - 1 =====================
+    function loadToursGrid() {
+        $("#grid").kendoGrid({
+            dataSource: {
+                transport: {
+                    read: {
+                        url: "/Event/GetAll",
+                        dataType: "json"
+                    }
+                },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+            columns: [
+                { field: "c_eventId", title: "Event ID", width: 100 },
+                { field: "c_eventname", title: "Event Name" },
+                { field: "c_eventprice", title: "Event Price" },
+                { field: "c_eventseats", title: "Event Seats" },
+                { field: "c_eventdate", title: "Event Date", format: "{0:yyyy-MM-dd}" },
+                { field: "c_address", title: "Event Address" },
+                {
+                    title: "Actions",
+                    width: 180,
+                    template:
+                        "<button class='k-button k-button-solid-info'  onclick='showExpense(#=c_eventId#)'>Expense</button>"
+                },
+                {
+                    title: "Actions",
+                    width: 180,
+                    template:
+                        "<button class='k-button k-button-solid-info' onclick='editTour(#=c_eventId#)'>Edit</button> " +
+                        "<button class='k-button k-button-solid-error' onclick='deleteTour(#=c_eventId#)'>Delete</button>"
+
+                }
+            ]
+        });
+    }
+
+    // ===================== BOOKINGS GRID - 2 =====================
+    function loadBookingsGrid() {
+        $("#grid1").kendoGrid({
+            dataSource: {
+                transport: { read: "/Admin/GetBookings" },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+            columns: [
+                { field: "c_bookingid", title: "Booking ID", width: 80 },
+                { field: "c_userid", title: "User ID", width: 80 },
+                { field: "c_eventid", title: "Event ID", width: 80 },
+                { field: "c_eventseats", title: "Event Seats", width: 80 },
+                { field: "c_eventprice", title: "Event Price", width: 100 },
+                { field: "c_status", title: "Status", width: 100 },
+                { field: "c_eventdate", title: "Event Date", format: "{0:yyyy-MM-dd}", width: 120 }
+
+            ]
+        });
+    }
+
+    // ===================== ADD TOUR =====================
+    function openAddTour() {
+        $("#eventName").val("");
+        $("#eventprice").val("");
+        $("#eventseats").val("");
+        $("#eventDate").val("");
+        $("#eventaddress").val("");
+        addWnd.center().open();
+    }
+
+    function saveTour() {
+        var tour = {
+            c_eventname: $("#eventName").val(),
+            c_eventprice: $("#eventprice").val(),
+            c_eventseats: $("#eventseats").val(),
+            c_eventdate: $("#eventDate").val(),
+            c_address: $("#eventaddress").val(),
+        };
+
+        $.ajax({
+            url: "/Admin/AddTour",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(tour),
+            success: function (res) {
+                if (res.success) {
+                    alert("Tour Added Successfully!");
+                    addWnd.close();
+                    $("#grid").data("kendoGrid").dataSource.read();
+                }
+            }
+        });
+    }
+
+    // ===================== DELETE Tour =====================
+    // DELETE TOUR
+    function deleteTour(id) {
+        if (!confirm("Are you sure?")) return;
+
+        $.post("/Admin/DeleteTour", { id: id }, function (res) {
+            if (res.success) {
+                alert("Tour Deleted!");
+                $("#grid").data("kendoGrid").dataSource.read();
+            }
+        });
+    }
+
+    // ===================== EDIT Tour =====================
+    // EDIT TOUR
+    function editTour(id) {
+        var grid = $("#grid").data("kendoGrid");
+        var data = grid.dataSource.data().find(x => x.c_eventId == id);
+
+        $("#editeventId").val(data.c_eventId);
+        $("#EventName").val(data.c_eventname);
+        $("#EventDate").val(data.c_eventdate);
+        $("#Eventprice").val(data.c_eventprice);
+        $("#Eventseats").val(data.c_eventseats);
+        $("#Eventaddress").val(data.c_address);
+
+        editTourWnd.center().open();
+    }
+
+    function saveTourEdit() {
+        var tour = {
+            c_eventId: $("#editeventId").val(),
+            c_eventname: $("#EventName").val(),
+            c_eventdate: $("#EventDate").val(),
+            c_eventprice: $("#Eventprice").val(),
+            c_eventseats: $("#Eventseats").val(),
+            c_address: $("#Eventaddress").val()
+        };
+
+        $.ajax({
+            url: "/Admin/UpdateTour",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(tour),
+            success: function (res) {
+                if (res.success) {
+                    alert("Tour Updated!");
+                    editTourWnd.close();
+                    $("#grid").data("kendoGrid").dataSource.read();
+                }
+            }
+        });
+    }
+
+
+
+
+
+    @* "<button class='k-button k-button-solid-primary' onclick='editStatus(#=t_bookingId#)'>Status</button>" *@
+
+        @* statusWnd = $("#statusWindow").kendoWindow({
+            title: "Update Status",
+            width: "300px",
+            height: "220px",
+            modal: true,
+            visible: false
+        }).data("kendoWindow"); *@
+
+        @* <!-- ===================== STATUS WINDOW ===================== -->
+    <div id="statusWindow" style="display:none;">
+        <input type="hidden" id="statusBookingId" />
+
+        <label>Status</label>
+        <select class="k-dropdown" id="Status" style="width:100%;">
+            <option value="Done">Done</option>
+            <option value="Not Done">Not Done</option>
+        </select>
+
+        <br /><br />
+
+        <button class="k-button k-button-solid-primary" onclick="saveStatusEdit()">
+            Update Status
+        </button>
+    </div> *@
+
+        // ===================== STATUS UPDATE =====================
+        @* function editStatus(id) {
+        $.get("/Admin/GetBookings", function (data) {
+            var booking = data.find(x => x.t_bookingId === id);
+
+            $("#statusBookingId").val(booking.t_bookingId);
+            $("#Status").val(booking.t_status);
+
+            statusWnd.center().open();
+        });
+    }
+
+    function saveStatusEdit() {
+        var booking = {
+            t_bookingId: $("#statusBookingId").val(),
+            t_status: $("#Status").val()
+        };
+
+        $.ajax({
+            url: "/Admin/UpdateBookingStatus",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(booking),
+            success: function (res) {
+                if (res.success) {
+                    alert("Status Updated!");
+                    statusWnd.close();
+                    $("#grid1").data("kendoGrid").dataSource.read();
+                }
+            }
+        });
+    } *@
+
+
+
+
+
+
+
+
+</script>

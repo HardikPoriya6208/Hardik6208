@@ -1,0 +1,264 @@
+library
+
+-------------CSHTML
+
+<div id="window" style="display: none;">
+    <b>Issue Date</b>
+    <input type="text" id="startdate">
+    <br><br>
+    <b>return Date</b>
+    <input type="text" id="enddate">
+    <br><br>
+    <button id="btn" class="k-button  k-button-solid-success w-100">Submit</button>
+</div>
+
+                    {
+                        title: "Action",
+                        command: {
+                            name: "Return",
+                            text: "Return",
+                            click: ReturnBooking
+                        }
+                    }
+
+            function ReturnBooking(e) {
+                var dataItem = this.dataItem($(e.currentTarget).closest("tr"));
+                $("#window").data("kendoWindow").open().center();
+
+                $("#startdate").kendoDatePicker({
+                    value: dataItem.c_issuedate
+                }).data("kendoDatePicker").readonly();
+
+
+                $("#enddate").kendoDatePicker({
+                    value: new Date()
+                });
+
+
+                $("#btn").click(function () {
+                    var start = $("#startdate").val();
+                    var end = $("#enddate").val();
+
+                    if (start > end) {
+                        $("#window").data("kendoWindow").close();
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: "Return Date should be Greater then issue date",
+                            showConfirmButton: false,
+                            timer: 1500,
+                            timerProgressBar: true
+                        }).then(function () {
+
+                            $("#window").data("kendoWindow").open().center();
+                        })
+
+                    }
+                    else {
+                        $.ajax({
+                            url: "/User/ReturnBooks",
+                            method: "post",
+                            data: { c_issueid: dataItem.c_issueid, c_returndate: end, c_duedate: dataItem.c_duedate, c_bookid: dataItem.c_bookid },
+                            success: function (res) {
+                                if (res.success) {
+                                    $("#window").data("kendoWindow").close();
+
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Welcome!',
+                                        text: res.message,
+                                        showConfirmButton: false,
+                                        timer: 1500,
+                                        timerProgressBar: true
+                                    }).then(function () {
+
+                                        window.location.href = "/User/BooksHistory"
+                                    })
+                                }
+                                else {
+                                    $("#window").data("kendoWindow").close();
+
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error!',
+                                        text: res.message,
+                                        showConfirmButton: false,
+                                        timer: 1500,
+                                        timerProgressBar: true
+                                    })
+                                }
+                            }
+                        })
+                    }
+
+
+                })
+            }
+       
+    ---------------CONTROLLER
+
+ [HttpPost]
+        public async Task<IActionResult> ReturnBooks(int c_issueid, string c_returndate, string c_duedate, int c_bookid)
+        {
+            // Console.WriteLine("IssuedID = " + c_issueid + "\nReturn Date = " + c_returndate + "\nIssue Date = " + c_duedate);
+
+            DateTime duedate = DateTime.ParseExact(c_duedate, "M/d/yyyy", null);
+            DateTime enddate = DateTime.ParseExact(c_returndate, "M/d/yyyy", null);
+
+            int days = (enddate - duedate).Days;
+            var fine = 0;
+            if (days > 0)
+            {
+                fine = days * 50;
+            }
+
+            t_book_return bookreturn = new t_book_return();
+            bookreturn.c_issueid = c_issueid;
+            bookreturn.c_returndate = c_returndate;
+            bookreturn.c_fine = fine;
+
+            int uid = (int)HttpContext.Session.GetInt32("Id");
+
+            Console.WriteLine("User Id : " + uid + "\nBooking ID : " + c_bookid);
+
+
+
+            int status = await _book.CheckReturnBook(c_bookid, uid , c_issueid);
+
+            if (status == 0)
+            {
+                return new JsonResult(new { success = false, message = "Already return this book" });
+            }
+            else if (status == 1)
+            {
+
+                await _book.UpdateReturnBook(c_issueid);
+                await _book.ReturnBook(bookreturn);
+                Console.WriteLine("Days --> " + days);
+                return new JsonResult(new { success = true, message = "Book Returned succesfully" });
+            }
+            return new JsonResult(new { success = false, message = "Error in Register Please Contact Developer Krish" });
+        }
+
+---------------------------SERVICE
+ public async Task<int> CheckReturnBook(int c_bookid, int c_userid , int c_issueid)
+        {
+            try
+            {
+
+                // Console.WriteLine("User Id : " + c_userid + "\nBooking ID : " + c_bookid);
+                await _conn.OpenAsync();
+                using (var cmd = new NpgsqlCommand(@"SELECT * FROM t_book_issue where c_userid = @c_userid and c_issueid = @c_issueid
+                and c_status = 'Returned'", _conn))
+                {
+                    cmd.Parameters.AddWithValue("c_userid", c_userid);
+                    cmd.Parameters.AddWithValue("c_issueid", c_issueid);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        if (reader.Read())
+                        {
+                            return 0;
+                        }
+                    }
+                }
+
+                using (var cmd = new NpgsqlCommand(@"update 
+                  t_book 
+                set 
+                  c_avalqty = c_avalqty+1
+                where 
+                  c_bookid = @c_bookid;", _conn))
+                {
+
+                    cmd.Parameters.AddWithValue("c_bookid", c_bookid);
+                    await cmd.ExecuteNonQueryAsync();
+                    return 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in BOOK Issue ---> " + ex.Message);
+                return -1;
+
+            }
+            finally
+            {
+                await _conn.CloseAsync();
+            }
+        }
+
+
+   public async Task UpdateReturnBook(int issid)
+        {
+            try
+            {
+                await _conn.OpenAsync();
+
+
+                using (var cmd = new NpgsqlCommand(@"
+                          update 
+                            t_book_issue 
+                          set 
+                            c_status = 'Returned'
+                          where 
+                            c_issueid = @c_issueid;", _conn))
+                {
+                    cmd.Parameters.AddWithValue("c_issueid", issid);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in UpdateReturnBook ---> " + ex.Message);
+
+            }
+            finally
+            {
+                await _conn.CloseAsync();
+            }
+
+
+
+        }
+
+
+        public async Task ReturnBook(t_book_return book)
+        {
+            Console.WriteLine("Helloe");
+            try
+            {
+                Console.WriteLine(book.c_issueid + "" + book.c_fine + "" + book.c_returndate);
+                await _conn.OpenAsync();
+                using (var cmd = new NpgsqlCommand(@" insert into 
+                        t_book_return (
+                          c_issueid, 
+                          c_returndate, 
+                          c_fine
+                        )
+                      values
+                        (
+                          @c_issueid, 
+                          @c_returndate, 
+                          @c_fine
+                        );", _conn))
+                {
+                    cmd.Parameters.AddWithValue("c_issueid", book.c_issueid);
+                    cmd.Parameters.AddWithValue("c_returndate", book.c_returndate);
+                    cmd.Parameters.AddWithValue("c_fine", book.c_fine);
+                    await cmd.ExecuteNonQueryAsync();
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in CREATE BOOK ---> " + ex.Message);
+
+            }
+            finally
+            {
+                await _conn.CloseAsync();
+            }
+        }
+

@@ -1,0 +1,211 @@
+@{
+    ViewData["Title"] = "Library Management";
+}
+
+<link rel="stylesheet" href="~/lib/kendo/kendo.default-v2.min.css" />
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/kendo/kendo.all.min.js"></script>
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">Library Management</h2>
+
+    <h4>Available Books</h4>
+    <div id="grid"></div>
+
+    <hr />
+
+    <h4>Your Bookings</h4>
+    <div id="grid1"></div>
+
+</div>
+
+<!-- ================= BOOKING POPUP ================= -->
+<div id="bookingWindow" style="display:none;">
+    <div style="padding:15px">
+
+        <div class="mb-3">
+            <label>Issue Date</label>
+            <input id="issueDate" style="width:100%" />
+        </div>
+
+        <div class="mb-3">
+            <label>Due Date</label>
+            <input id="dueDate" style="width:100%" />
+        </div>
+
+        <button class="k-button k-button-solid-primary" onclick="confirmBooking()">
+            Confirm Booking
+        </button>
+
+    </div>
+</div>
+
+<script>
+
+    var selectedBook = null;
+
+    $(document).ready(function () {
+
+        loadLibraryGrid();
+        loadBookingGrid();
+
+        $("#issueDate").kendoDatePicker({ format: "yyyy-MM-dd", min: new Date() });
+        $("#dueDate").kendoDatePicker({ format: "yyyy-MM-dd", min: new Date() });
+
+        $("#bookingWindow").kendoWindow({
+            width: "400px",
+            title: "Book Issue",
+            modal: true,
+            visible: false
+        });
+    });
+
+
+    // =============================
+    // GRID → AVAILABLE BOOKS
+    // =============================
+    function loadLibraryGrid() {
+        $("#grid").kendoGrid({
+            dataSource: {
+                transport: { read: "/Library/GetAll" },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+
+            columns: [
+                { field: "c_bookingid", title: "Book ID", width: 80 },
+                { field: "c_bookname", title: "Book Name" },
+                { field: "c_author", title: "Author" },
+                { field: "c_category", title: "Category" },
+                { field: "c_availableqty", title: "Available", width: 90 },
+                {
+                    title: "Image",
+                    width: 100,
+                    template: `
+                        <img src="/BookImages/#= c_image #"
+                             style="height:70px;width:50px;border-radius:4px;" />
+                    `
+                },
+                {
+                    title: "Action",
+                    width: 120,
+                    template: function (dataItem) {
+                        if (dataItem.c_availableqty > 0) {
+                            return `<button class="k-button k-button-solid-primary btnBooking">Book</button>`;
+                        }
+                        return `<button class="k-button k-button-disabled" disabled>Out</button>`;
+                    }
+                }
+            ]
+        });
+    }
+
+
+    // =============================
+    // GRID → USER BOOKINGS
+    // =============================
+    function loadBookingGrid() {
+        $("#grid1").kendoGrid({
+            dataSource: {
+                transport: { read: "/Library/GetBookings" },
+                pageSize: 10
+            },
+            pageable: true,
+            sortable: true,
+
+            columns: [
+                { field: "c_issueid", title: "Issue ID", width: 80 },
+                { field: "c_bookname", title: "Book Name" },
+                { field: "c_status", title: "Status", width: 100 },
+                { field: "c_issueDate", title: "Issue Date", width: 120 },
+                { field: "c_dueDate", title: "Due Date", width: 120 },
+                {
+                    title: "Action",
+                    width: 120,
+                    template: `
+                        <button class="k-button k-button-solid-error"
+                                onclick="deleteBooking(#=c_issueid#)">
+                            Delete
+                        </button>
+                    `
+                }
+            ]
+        });
+    }
+
+    // ================= OPEN POPUP =================
+    $(document).on("click", ".btnBooking", function () {
+
+        var grid = $("#grid").data("kendoGrid");
+        var row = $(this).closest("tr");
+        selectedBook = grid.dataItem(row);
+
+        var today = new Date();
+        var due = new Date();
+        due.setDate(today.getDate() + 7);
+
+        $("#issueDate").data("kendoDatePicker").value(today);
+        $("#dueDate").data("kendoDatePicker").value(due);
+
+        $("#bookingWindow").data("kendoWindow").center().open();
+    });
+
+    // ================= CONFIRM BOOKING =================
+    function confirmBooking() {
+
+        var issueDate = $("#issueDate").val();
+        var dueDate = $("#dueDate").val();
+
+        if (!issueDate || !dueDate) {
+            alert("Please select dates");
+            return;
+        }
+
+        var booking = {
+            c_bookingid: selectedBook.c_bookingid,
+            c_bookname: selectedBook.c_bookname,
+            c_issueDate: issueDate,
+            c_dueDate: dueDate,
+            c_status: "Issued"
+        };
+
+        $.ajax({
+            url: "/Library/SaveBooking",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(booking),
+            success: function (res) {
+                if (res.success) {
+                    alert("Book Issued Successfully!");
+                    $("#bookingWindow").data("kendoWindow").close();
+                    $("#grid").data("kendoGrid").dataSource.read();
+                    $("#grid1").data("kendoGrid").dataSource.read();
+                } else {
+                    alert(res.message || "Booking failed");
+                }
+            }
+        });
+    }
+
+    // ================= DELETE BOOKING =================
+    function deleteBooking(id) {
+
+        if (!confirm("Are you sure?"))
+            return;
+
+        $.ajax({
+            url: "/Library/DeleteBooking?id=" + id,
+            type: "POST",
+            success: function (res) {
+                if (res.success) {
+                    alert("Booking Deleted");
+                    $("#grid").data("kendoGrid").dataSource.read();
+                    $("#grid1").data("kendoGrid").dataSource.read();
+                }
+            }
+        });
+    }
+
+</script>
