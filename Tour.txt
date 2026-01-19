@@ -1,5 +1,15 @@
 Tour
 
+Tour Booking System :-
+
+Profit Calculation
+For each tour:
+Total Income = Total Bookings × Tour Price
+Total Expense = Sum of all expenses for that tour
+Profit = Total Income – Total Expense
+
+
+
 ----------------------CShtml
 
 @{

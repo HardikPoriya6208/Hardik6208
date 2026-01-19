@@ -1,5 +1,11 @@
 EVENT
 
+Event Booking System :-
+
+Total Earnings = SUM(SeatsBooked × Price for each confirmed booking)
+
+
+
 --------------------CSHTML
 
 @{
